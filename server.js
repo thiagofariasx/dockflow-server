@@ -1,28 +1,34 @@
 const http = require('http').createServer();
 const io = require('socket.io')(http, {
-  cors: { origin: "*" } 
+  cors: { origin: "*" }
 });
-const axios = require('axios'); // Biblioteca para enviar os dados para a planilha
+
+const URL_PLANILHA = "https://script.google.com/macros/s/AKfycbz148AMTmbbCdznoTIw8XNjA7TlpYA7JCiFn-8fTlu9eYE1dY5Kf5G0p3fO41-GiQYT3A/exec";
 
 io.on('connection', (socket) => {
-  console.log('Uma máquina conectou: ' + socket.id);
+  console.log('Máquina conectada:', socket.id);
 
-  socket.on('enviar-chamada', (dados) => {
-    // 1. O servidor continua "gritando" para todas as TVs (Sincronização em tempo real)
+  socket.on('enviar-chamada', async (dados) => {
     io.emit('receber-chamada', dados);
+    console.log('Sinal enviado para as TVs:', dados.fornecedor);
 
-    // 2. NOVO: Enviar para o Histórico no Google Sheets
-    const urlPlanilha = "https://script.google.com/macros/s/AKfycbz148AMTmbbCdznoTIw8XNjA7TlpYA7JCiFn-8fTlu9eYE1dY5Kf5G0p3fO41-GiQYT3A/exec";
-
-    axios.post(urlPlanilha, {
-      hora: dados.hora,
-      fornecedor: dados.fornecedor,
-      doca: dados.doca,
-      projeto: dados.projeto,
-      maquina: dados.maquina || "Terminal RV"
-    })
-    .then(() => console.log("✅ Histórico salvo com sucesso!"))
-    .catch(err => console.error("❌ Erro ao salvar na planilha:", err.message));
+    try {
+      // Usando FETCH nativo (não precisa de axios/instalação)
+      await fetch(URL_PLANILHA, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hora: dados.hora || new Date().toLocaleTimeString(),
+          fornecedor: dados.fornecedor,
+          doca: dados.doca,
+          projeto: dados.projeto,
+          maquina: dados.maquina || "Terminal RV"
+        })
+      });
+      console.log("✅ Histórico gravado com sucesso!");
+    } catch (err) {
+      console.error("⚠️ Erro ao gravar histórico:", err.message);
+    }
   });
 
   socket.on('disconnect', () => {
@@ -32,5 +38,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-  console.log(`Servidor DOCKFLOW rodando na porta ${PORT}`);
+  console.log(`Servidor DOCKFLOW operacional na porta ${PORT}`);
 });
