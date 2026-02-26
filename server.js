@@ -9,16 +9,16 @@ io.on('connection', (socket) => {
   console.log('Máquina conectada:', socket.id);
 
   socket.on('enviar-chamada', async (dados) => {
-    // 1. Grita para as TVs
+    // 1. Grita para as TVs (Sincronização imediata)
     io.emit('receber-chamada', dados);
-    console.log('Sinal enviado para as TVs:', dados.fornecedor);
+    console.log('Sinal enviado para as TVs:', dados.fornecedor || dados.unidade);
 
-    // 2. Tenta gravar na planilha
+    // 2. Tenta gravar na planilha DOCKFLOW_DADOS
     try {
       let projetoFormatado = "OUTROS";
       const mod = dados.modulo ? dados.modulo.toLowerCase() : "";
       
-      // Ajuste para não ficar "---" no fornecedor
+      // Lógica para Fornecedor: Se não tiver fornecedor, usa Unidade (CEAF/PPI/MANUAL)
       let nomeExibicao = dados.fornecedor || dados.unidade || dados.projeto || "---";
 
       if (mod === 'recebimento') {
@@ -29,6 +29,7 @@ io.on('connection', (socket) => {
           projetoFormatado = "PPI";
       } else if (mod === 'manual' || (dados.projeto && dados.projeto.includes("MANUAL"))) {
           projetoFormatado = "MANUAL";
+          // No manual, se a unidade estiver vazia, tenta pegar o responsável
           nomeExibicao = dados.unidade || dados.motorista || "CHAMADA MANUAL";
       }
 
@@ -37,8 +38,8 @@ io.on('connection', (socket) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data: new Date().toLocaleDateString('pt-BR'),
-          hora: dados.hora || new Date().toLocaleTimeString(),
-          fornecedor: nomeExibicao, // Agora usa a Unidade se não tiver fornecedor
+          hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          fornecedor: nomeExibicao,
           transportadora: dados.transportadora || "---",
           motorista: dados.motorista || "---",
           doca: dados.doca || "---",
@@ -46,11 +47,11 @@ io.on('connection', (socket) => {
           maquina: "Terminal RV"
         })
       });
-      console.log(`✅ Gravado: ${projetoFormatado} - ${nomeExibicao}`);
+      console.log(`✅ Gravado no Google Sheets: ${projetoFormatado} - ${nomeExibicao}`);
     } catch (err) {
-      console.error("⚠️ Erro:", err.message);
+      console.error("⚠️ Erro ao enviar para Planilha:", err.message);
     }
-  }); // <-- A CHAVE QUE FALTAVA ESTÁ AQUI
+  }); // Chave de fechamento do enviar-chamada
 
   socket.on('disconnect', () => {
     console.log('Máquina desconectada');
@@ -61,5 +62,3 @@ const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
   console.log(`Servidor DOCKFLOW operacional na porta ${PORT}`);
 });
-
-
