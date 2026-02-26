@@ -15,6 +15,22 @@ io.on('connection', (socket) => {
 
     // 2. Tenta gravar na planilha
     try {
+      // LÓGICA DE TRADUÇÃO DO PROJETO
+      let projetoFormatado = "OUTROS";
+      const mod = dados.modulo ? dados.modulo.toLowerCase() : "";
+
+      if (mod === 'recebimento') {
+          projetoFormatado = "RECEBIMENTO";
+      } else if (mod === 'ceaf') {
+          projetoFormatado = "CEAF CESAF";
+      } else if (mod === 'ppi') {
+          projetoFormatado = "PPI";
+      } else if (dados.projeto && dados.projeto.includes("MANUAL")) {
+          projetoFormatado = "MANUAL";
+      } else {
+          projetoFormatado = dados.projeto || "RECEBIMENTO"; // Padrão
+      }
+
       await fetch(URL_PLANILHA, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,13 +41,13 @@ io.on('connection', (socket) => {
           transportadora: dados.transportadora || "---",
           motorista: dados.motorista || "---",
           doca: dados.doca || "---",
-          projeto: dados.projeto || dados.unidade || "---",
-          maquina: dados.maquina || "Terminal RV"
+          projeto: projetoFormatado, // Agora vai o nome bonito
+          maquina: "Terminal RV"
         })
       });
-      console.log("✅ Histórico gravado na ordem correta!");
+      console.log(`✅ Gravado: ${projetoFormatado}`);
     } catch (err) {
-      console.error("⚠️ Erro ao gravar histórico:", err.message);
+      console.error("⚠️ Erro:", err.message);
     }
   }); // <-- A CHAVE QUE FALTAVA ESTÁ AQUI
 
@@ -44,3 +60,4 @@ const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
   console.log(`Servidor DOCKFLOW operacional na porta ${PORT}`);
 });
+
