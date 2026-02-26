@@ -15,9 +15,11 @@ io.on('connection', (socket) => {
 
     // 2. Tenta gravar na planilha
     try {
-      // LÓGICA DE TRADUÇÃO DO PROJETO
       let projetoFormatado = "OUTROS";
       const mod = dados.modulo ? dados.modulo.toLowerCase() : "";
+      
+      // Ajuste para não ficar "---" no fornecedor
+      let nomeExibicao = dados.fornecedor || dados.unidade || dados.projeto || "---";
 
       if (mod === 'recebimento') {
           projetoFormatado = "RECEBIMENTO";
@@ -25,10 +27,9 @@ io.on('connection', (socket) => {
           projetoFormatado = "CEAF CESAF";
       } else if (mod === 'ppi') {
           projetoFormatado = "PPI";
-      } else if (dados.projeto && dados.projeto.includes("MANUAL")) {
+      } else if (mod === 'manual' || (dados.projeto && dados.projeto.includes("MANUAL"))) {
           projetoFormatado = "MANUAL";
-      } else {
-          projetoFormatado = dados.projeto || "RECEBIMENTO"; // Padrão
+          nomeExibicao = dados.unidade || dados.motorista || "CHAMADA MANUAL";
       }
 
       await fetch(URL_PLANILHA, {
@@ -37,15 +38,15 @@ io.on('connection', (socket) => {
         body: JSON.stringify({
           data: new Date().toLocaleDateString('pt-BR'),
           hora: dados.hora || new Date().toLocaleTimeString(),
-          fornecedor: dados.fornecedor || "---",
+          fornecedor: nomeExibicao, // Agora usa a Unidade se não tiver fornecedor
           transportadora: dados.transportadora || "---",
           motorista: dados.motorista || "---",
           doca: dados.doca || "---",
-          projeto: projetoFormatado, // Agora vai o nome bonito
+          projeto: projetoFormatado,
           maquina: "Terminal RV"
         })
       });
-      console.log(`✅ Gravado: ${projetoFormatado}`);
+      console.log(`✅ Gravado: ${projetoFormatado} - ${nomeExibicao}`);
     } catch (err) {
       console.error("⚠️ Erro:", err.message);
     }
@@ -60,4 +61,5 @@ const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
   console.log(`Servidor DOCKFLOW operacional na porta ${PORT}`);
 });
+
 
